@@ -11,7 +11,7 @@ import { Construct } from "constructs";
 
 const EMBEDDING_MODEL_ID = "amazon.titan-embed-text-v2:0";
 const EMBEDDING_DIMENSIONS = 1024;
-const GENERATION_MODEL_ID = "anthropic.claude-sonnet-4-20250514-v1:0";
+const GENERATION_MODEL_ID = "anthropic.claude-sonnet-4-6";
 const PARSING_MODEL_ID = "anthropic.claude-haiku-4-5-20251001-v1:0";
 const DOCUMENTS_PREFIX = "documents/";
 
