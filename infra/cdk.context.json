@@ -6,5 +6,9 @@
     "us-east-1d",
     "us-east-1e",
     "us-east-1f"
-  ]
+  ],
+  "hosted-zone:account=565393069879:domainName=briefly-learn.com:region=us-east-1": {
+    "Id": "/hostedzone/Z08333773CBXERA1YVDZO",
+    "Name": "briefly-learn.com."
+  }
 }

@@ -1,7 +1,10 @@
 name: Deploy
 
+# Runs only after CI succeeds on main (or via manual dispatch).
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -12,20 +15,36 @@ concurrency:
 permissions:
   id-token: write
   contents: read
+  actions: read
 
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: document-assistant
   CDK_DEFAULT_ACCOUNT: "565393069879"
   CDK_DEFAULT_REGION: us-east-1
+  APP_URL: https://document-assistant.briefly-learn.com
 
 jobs:
   deploy:
     name: Deploy to AWS
     runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     steps:
+      - name: Resolve commit SHA
+        id: sha
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.sha.outputs.sha }}
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -41,14 +60,6 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             infra/package-lock.json
-
-      - name: Install app dependencies
-        run: npm ci
-
-      - name: Lint & build app
-        run: |
-          npm run lint
-          npm run build
 
       - name: Install infra dependencies
         working-directory: infra
@@ -66,7 +77,7 @@ jobs:
       - name: Build and push image (before CDK when ECR exists)
         if: steps.ecr.outputs.exists == 'true'
         env:
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: ${{ steps.sha.outputs.sha }}
         run: ./scripts/push-ecr-image.sh
 
       - name: Deploy CDK stack
@@ -76,7 +87,7 @@ jobs:
       - name: Build and push image (after first ECR create)
         if: steps.ecr.outputs.exists != 'true'
         env:
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: ${{ steps.sha.outputs.sha }}
         run: ./scripts/push-ecr-image.sh
 
       - name: Read stack outputs
@@ -86,10 +97,12 @@ jobs:
           CLUSTER="$(jq -r '.DocumentAssistantStack.EcsClusterName' cdk-outputs.json)"
           SERVICE="$(jq -r '.DocumentAssistantStack.EcsServiceName' cdk-outputs.json)"
           ALB_DNS="$(jq -r '.DocumentAssistantStack.LoadBalancerDns' cdk-outputs.json)"
+          APP_URL_OUT="$(jq -r '.DocumentAssistantStack.AppUrl // empty' cdk-outputs.json)"
           ROLE_ARN="$(jq -r '.DocumentAssistantStack.GitHubDeployRoleArn' cdk-outputs.json)"
           echo "cluster=${CLUSTER}" >> "$GITHUB_OUTPUT"
           echo "service=${SERVICE}" >> "$GITHUB_OUTPUT"
           echo "alb_dns=${ALB_DNS}" >> "$GITHUB_OUTPUT"
+          echo "app_url=${APP_URL_OUT:-$APP_URL}" >> "$GITHUB_OUTPUT"
           echo "role_arn=${ROLE_ARN}" >> "$GITHUB_OUTPUT"
 
       - name: Force new ECS deployment
@@ -109,7 +122,7 @@ jobs:
 
       - name: Smoke check health endpoint
         run: |
-          URL="http://${{ steps.outputs.outputs.alb_dns }}/api/health"
+          URL="${{ steps.outputs.outputs.app_url }}/api/health"
           echo "Checking ${URL}"
           for i in $(seq 1 20); do
             if curl -fsS "${URL}"; then
@@ -128,8 +141,9 @@ jobs:
           {
             echo "## Deploy complete"
             echo ""
-            echo "- App URL: http://${{ steps.outputs.outputs.alb_dns }}"
-            echo "- Health: http://${{ steps.outputs.outputs.alb_dns }}/api/health"
-            echo "- Image: \`${IMAGE_URI}:${{ github.sha }}\`"
+            echo "- App URL: ${{ steps.outputs.outputs.app_url }}"
+            echo "- Health: ${{ steps.outputs.outputs.app_url }}/api/health"
+            echo "- ALB DNS: \`${{ steps.outputs.outputs.alb_dns }}\`"
+            echo "- Image: \`${IMAGE_URI}:${{ steps.sha.outputs.sha }}\`"
             echo "- Deploy role: \`${{ steps.outputs.outputs.role_arn }}\`"
           } >> "$GITHUB_STEP_SUMMARY"

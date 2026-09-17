@@ -19,6 +19,9 @@
     "githubOwner": "brieflydev",
     "githubRepo": "document-assistant",
     "githubOwnerId": "210855841",
-    "githubRepoId": "1374089154"
+    "githubRepoId": "1374089154",
+    "appDomainName": "document-assistant.briefly-learn.com",
+    "hostedZoneName": "briefly-learn.com",
+    "certificateArn": "arn:aws:acm:us-east-1:565393069879:certificate/ca3bca3e-6bd6-4666-8030-7b33f895cfb5"
   }
 }

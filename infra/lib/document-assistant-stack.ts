@@ -1,4 +1,5 @@
 import * as cdk from "aws-cdk-lib";
+import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as bedrock from "aws-cdk-lib/aws-bedrock";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as ecr from "aws-cdk-lib/aws-ecr";
@@ -6,6 +7,7 @@ import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as ecsPatterns from "aws-cdk-lib/aws-ecs-patterns";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as logs from "aws-cdk-lib/aws-logs";
+import * as route53 from "aws-cdk-lib/aws-route53";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 
@@ -14,6 +16,10 @@ const EMBEDDING_DIMENSIONS = 1024;
 // Claude models require inference profiles (on-demand foundation model IDs are rejected).
 const GENERATION_MODEL_ID = "us.anthropic.claude-sonnet-4-6";
 const DOCUMENTS_PREFIX = "documents/";
+const DEFAULT_APP_DOMAIN = "document-assistant.briefly-learn.com";
+const DEFAULT_HOSTED_ZONE = "briefly-learn.com";
+const DEFAULT_CERTIFICATE_ARN =
+  "arn:aws:acm:us-east-1:565393069879:certificate/ca3bca3e-6bd6-4666-8030-7b33f895cfb5";
 
 export interface DocumentAssistantStackProps extends cdk.StackProps {
   readonly githubOwner: string;
@@ -221,6 +227,25 @@ export class DocumentAssistantStack extends cdk.Stack {
     const containerPort = usePlaceholderImage ? 80 : 3000;
     const healthCheckPath = usePlaceholderImage ? "/" : "/api/health";
 
+    const appDomainName =
+      (this.node.tryGetContext("appDomainName") as string | undefined) ??
+      DEFAULT_APP_DOMAIN;
+    const hostedZoneName =
+      (this.node.tryGetContext("hostedZoneName") as string | undefined) ??
+      DEFAULT_HOSTED_ZONE;
+    const certificateArn =
+      (this.node.tryGetContext("certificateArn") as string | undefined) ??
+      DEFAULT_CERTIFICATE_ARN;
+
+    const hostedZone = route53.HostedZone.fromLookup(this, "HostedZone", {
+      domainName: hostedZoneName,
+    });
+    const certificate = acm.Certificate.fromCertificateArn(
+      this,
+      "HttpsCertificate",
+      certificateArn,
+    );
+
     const service = new ecsPatterns.ApplicationLoadBalancedFargateService(
       this,
       "WebService",
@@ -234,7 +259,10 @@ export class DocumentAssistantStack extends cdk.Stack {
         publicLoadBalancer: true,
         assignPublicIp: true,
         taskSubnets: { subnetType: ec2.SubnetType.PUBLIC },
-        listenerPort: 80,
+        certificate,
+        domainName: appDomainName,
+        domainZone: hostedZone,
+        redirectHTTP: true,
         healthCheckGracePeriod: cdk.Duration.seconds(60),
         taskImageOptions: {
           image: containerImage,
@@ -435,10 +463,25 @@ export class DocumentAssistantStack extends cdk.Stack {
           "elasticloadbalancing:*",
           "logs:*",
           "application-autoscaling:*",
+          "route53:ChangeResourceRecordSets",
+          "route53:GetChange",
+          "route53:ListHostedZones",
+          "route53:ListHostedZonesByName",
+          "route53:ListResourceRecordSets",
+          "acm:DescribeCertificate",
+          "acm:ListCertificates",
+          "acm:GetCertificate",
         ],
         resources: ["*"],
       }),
     );
+
+    const appUrl = `https://${appDomainName}`;
+
+    new cdk.CfnOutput(this, "AppUrl", {
+      value: appUrl,
+      description: "HTTPS application URL",
+    });
 
     new cdk.CfnOutput(this, "LoadBalancerDns", {
       value: service.loadBalancer.loadBalancerDnsName,

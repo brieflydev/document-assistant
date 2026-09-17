@@ -45,8 +45,8 @@ See [`.github/workflows/README.md`](.github/workflows/README.md) for the one-tim
 
 ## Live demo
 
-- App: http://Docume-WebSe-IKUAt3ofKGAZ-1278548335.us-east-1.elb.amazonaws.com
-- Health: http://Docume-WebSe-IKUAt3ofKGAZ-1278548335.us-east-1.elb.amazonaws.com/api/health
+- App: https://document-assistant.briefly-learn.com
+- Health: https://document-assistant.briefly-learn.com/api/health
 - Repo: https://github.com/brieflydev/document-assistant
 
 Tear down when finished: `cd infra && npx cdk destroy --force`
