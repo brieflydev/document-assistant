@@ -32,10 +32,11 @@ Because Docker cannot run on this workstation, validate with `npm run build` loc
 ./scripts/push-ecr-image.sh
 ```
 
-## CI/CD
+## Live demo
 
-- [`ci.yml`](.github/workflows/ci.yml) — lint, build, CDK synth
-- [`deploy.yml`](.github/workflows/deploy.yml) — OIDC deploy to AWS
+- App: http://Docume-WebSe-IKUAt3ofKGAZ-1278548335.us-east-1.elb.amazonaws.com
+- Health: http://Docume-WebSe-IKUAt3ofKGAZ-1278548335.us-east-1.elb.amazonaws.com/api/health
+- Repo: https://github.com/brieflydev/document-assistant
 
-See [`.github/workflows/README.md`](.github/workflows/README.md) for the one-time `AWS_ROLE_ARN` setup.
+Tear down when finished: `cd infra && npx cdk destroy --force`
 

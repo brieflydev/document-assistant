@@ -11,8 +11,8 @@ import { Construct } from "constructs";
 
 const EMBEDDING_MODEL_ID = "amazon.titan-embed-text-v2:0";
 const EMBEDDING_DIMENSIONS = 1024;
-const GENERATION_MODEL_ID = "anthropic.claude-sonnet-4-6";
-const PARSING_MODEL_ID = "anthropic.claude-haiku-4-5-20251001-v1:0";
+// Claude models require inference profiles (on-demand foundation model IDs are rejected).
+const GENERATION_MODEL_ID = "us.anthropic.claude-sonnet-4-6";
 const DOCUMENTS_PREFIX = "documents/";
 
 export interface DocumentAssistantStackProps extends cdk.StackProps {
@@ -74,10 +74,12 @@ export class DocumentAssistantStack extends cdk.Stack {
 
     knowledgeBaseRole.addToPolicy(
       new iam.PolicyStatement({
-        actions: ["bedrock:InvokeModel"],
+        actions: ["bedrock:InvokeModel", "bedrock:GetInferenceProfile"],
         resources: [
           `arn:aws:bedrock:${this.region}::foundation-model/${EMBEDDING_MODEL_ID}`,
-          `arn:aws:bedrock:${this.region}::foundation-model/${PARSING_MODEL_ID}`,
+          "arn:aws:bedrock:*::foundation-model/anthropic.claude-*",
+          `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/*`,
+          `arn:aws:bedrock:*:${this.account}:inference-profile/*`,
         ],
       }),
     );
@@ -122,8 +124,8 @@ export class DocumentAssistantStack extends cdk.Stack {
       knowledgeBaseRole.node.findChild("DefaultPolicy"),
     );
 
-    const dataSource = new bedrock.CfnDataSource(this, "DocumentsDataSource", {
-      name: "documents-s3",
+    const dataSource = new bedrock.CfnDataSource(this, "DocumentsDataSourceV2", {
+      name: "documents-s3-v2",
       description: "S3 documents for Document Assistant",
       knowledgeBaseId: knowledgeBase.attrKnowledgeBaseId,
       dataSourceConfiguration: {
@@ -133,15 +135,8 @@ export class DocumentAssistantStack extends cdk.Stack {
           inclusionPrefixes: [DOCUMENTS_PREFIX],
         },
       },
-      vectorIngestionConfiguration: {
-        parsingConfiguration: {
-          parsingStrategy: "BEDROCK_FOUNDATION_MODEL",
-          bedrockFoundationModelConfiguration: {
-            modelArn: `arn:aws:bedrock:${this.region}::foundation-model/${PARSING_MODEL_ID}`,
-          },
-        },
-      },
     });
+    dataSource.applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
 
     const repository = new ecr.Repository(this, "AppRepository", {
       repositoryName: "document-assistant",
@@ -187,6 +182,7 @@ export class DocumentAssistantStack extends cdk.Stack {
           "bedrock:RetrieveAndGenerate",
           "bedrock:InvokeModel",
           "bedrock:InvokeModelWithResponseStream",
+          "bedrock:GetInferenceProfile",
         ],
         resources: ["*"],
       }),
@@ -208,7 +204,7 @@ export class DocumentAssistantStack extends cdk.Stack {
       }),
     );
 
-    const generationModelArn = `arn:aws:bedrock:${this.region}::foundation-model/${GENERATION_MODEL_ID}`;
+    const generationModelArn = `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/${GENERATION_MODEL_ID}`;
 
     // First-time bootstrap: `cdk deploy -c usePlaceholderImage=true` so the stack
     // can create ECR/ECS before the real app image exists. Normal deploys omit this.

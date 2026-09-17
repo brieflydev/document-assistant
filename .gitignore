@@ -45,3 +45,4 @@ next-env.d.ts
 infra/cdk.out/
 infra/dist/
 infra/node_modules/
+infra/cdk-outputs.json

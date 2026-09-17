@@ -34,5 +34,4 @@ npx cdk deploy
 Requires CDK bootstrap in the target account/region (`npx cdk bootstrap`) and Bedrock model access enabled for:
 
 - `amazon.titan-embed-text-v2:0`
-- `anthropic.claude-sonnet-4-6`
-- `anthropic.claude-haiku-4-5-20251001-v1:0`
+- Inference profiles: `us.anthropic.claude-sonnet-4-6`, `us.anthropic.claude-haiku-4-5-20251001-v1:0`
