@@ -1,0 +1,79 @@
+%PDF-1.4
+1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj
+2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj
+3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>endobj
+4 0 obj<< /Length 1475 >>stream
+BT
+/F1 12 Tf
+14 TL
+72 720 Td
+(Northwind Support Escalation Policy) Tj
+T*
+() Tj
+T*
+(Document ID: NW-SUP-2026-01) Tj
+T*
+(Effective date: 1 March 2026) Tj
+T*
+(Owner: Customer Support Leadership) Tj
+T*
+() Tj
+T*
+(1. Severity definitions) Tj
+T*
+(   - SEV-1 \(Critical\): Production outage or data loss affecting many customers.) Tj
+T*
+(   - SEV-2 \(High\): Major feature unavailable with no practical workaround.) Tj
+T*
+(   - SEV-3 \(Medium\): Degraded experience with a workaround available.) Tj
+T*
+(   - SEV-4 \(Low\): Cosmetic issue or minor inconvenience.) Tj
+T*
+() Tj
+T*
+(2. Response time targets \(business hours, CET\)) Tj
+T*
+(   - SEV-1: first response within 15 minutes; update every 30 minutes.) Tj
+T*
+(   - SEV-2: first response within 1 hour; update every 2 hours.) Tj
+T*
+(   - SEV-3: first response within 1 business day.) Tj
+T*
+(   - SEV-4: first response within 3 business days.) Tj
+T*
+() Tj
+T*
+(3. Escalation path) Tj
+T*
+(   - Tier 1 Support acknowledges the ticket and triages severity.) Tj
+T*
+(   - Tier 2 Support owns SEV-2 and SEV-3 investigations.) Tj
+T*
+(   - On-call Engineering owns SEV-1 until mitigation.) Tj
+T*
+(   - Customer Success is notified for all SEV-1 accounts labeled Enterprise.) Tj
+T*
+() Tj
+T*
+(4. After-hours coverage) Tj
+T*
+(   Only SEV-1 incidents page the on-call engineer outside business hours.) Tj
+T*
+(   SEV-2 and below wait until the next business day unless an Enterprise) Tj
+T*
+(   contract explicitly includes 24x7 coverage.) Tj
+ET
+endstream endobj
+5 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000056 00000 n 
+0000000111 00000 n 
+0000000235 00000 n 
+0000001760 00000 n 
+trailer<< /Size 6 /Root 1 0 R >>
+startxref
+1828
+%%EOF

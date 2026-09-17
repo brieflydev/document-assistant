@@ -253,6 +253,7 @@ export class DocumentAssistantStack extends cdk.Stack {
             DATA_SOURCE_ID: dataSource.attrDataSourceId,
             AWS_REGION: this.region,
             BEDROCK_MODEL_ARN: generationModelArn,
+            VISION_MODEL_ID: "us.anthropic.claude-haiku-4-5-20251001-v1:0",
             PORT: "3000",
             HOSTNAME: "0.0.0.0",
             NODE_ENV: "production",

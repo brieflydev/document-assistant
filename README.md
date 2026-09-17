@@ -32,6 +32,17 @@ Because Docker cannot run on this workstation, validate with `npm run build` loc
 ./scripts/push-ecr-image.sh
 ```
 
+## Manual test fixtures
+
+Reusable upload samples (`.md`, `.txt`, `.pdf`, `.png`) plus suggested questions live in [`fixtures/manual-tests/`](fixtures/manual-tests/).
+
+## CI/CD
+
+- [`ci.yml`](.github/workflows/ci.yml) — lint, build, CDK synth
+- [`deploy.yml`](.github/workflows/deploy.yml) — OIDC deploy to AWS
+
+See [`.github/workflows/README.md`](.github/workflows/README.md) for the one-time `AWS_ROLE_ARN` setup.
+
 ## Live demo
 
 - App: http://Docume-WebSe-IKUAt3ofKGAZ-1278548335.us-east-1.elb.amazonaws.com

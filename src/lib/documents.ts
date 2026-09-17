@@ -8,7 +8,14 @@ import {
 } from "@aws-sdk/client-s3";
 import { getBedrockAgentClient, getS3Client } from "@/lib/aws";
 import { getAppConfig } from "@/lib/config";
+import {
+  extractTextFromImage,
+  imageFormatFromContentType,
+  isImageContentType,
+} from "@/lib/image-text";
 import type { DocumentItem, DocumentStatus } from "@/lib/types";
+
+const EXTRACTED_SUFFIX = ".extracted.txt";
 
 function guessContentType(fileName: string, fallback: string) {
   const lower = fileName.toLowerCase();
@@ -23,6 +30,10 @@ function guessContentType(fileName: string, fallback: string) {
 
 function sanitizeFileName(fileName: string) {
   return fileName.replace(/[^a-zA-Z0-9._-]+/g, "_");
+}
+
+function isExtractedCompanionKey(key: string) {
+  return key.endsWith(EXTRACTED_SUFFIX);
 }
 
 function objectKeyToDocument(
@@ -104,6 +115,10 @@ export async function listDocumentsFromS3(): Promise<DocumentItem[]> {
       if (!object.Key || object.Key.endsWith("/")) {
         continue;
       }
+      // Hide OCR companion files from the UI list.
+      if (isExtractedCompanionKey(object.Key)) {
+        continue;
+      }
 
       documents.push(
         objectKeyToDocument(
@@ -134,8 +149,9 @@ export async function uploadDocumentToS3(file: File): Promise<DocumentItem> {
   const key = `${config.documentsPrefix}${Date.now()}-${safeName}`;
   const contentType = guessContentType(file.name, file.type);
   const body = Buffer.from(await file.arrayBuffer());
+  const s3 = getS3Client();
 
-  await getS3Client().send(
+  await s3.send(
     new PutObjectCommand({
       Bucket: config.documentsBucket,
       Key: key,
@@ -146,6 +162,30 @@ export async function uploadDocumentToS3(file: File): Promise<DocumentItem> {
       },
     }),
   );
+
+  if (isImageContentType(contentType, file.name)) {
+    const format = imageFormatFromContentType(contentType, file.name);
+    if (format) {
+      const extracted = await extractTextFromImage({
+        bytes: body,
+        format,
+        fileName: file.name,
+      });
+
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: config.documentsBucket,
+          Key: `${key}${EXTRACTED_SUFFIX}`,
+          Body: extracted,
+          ContentType: "text/plain; charset=utf-8",
+          Metadata: {
+            sourceimage: encodeURIComponent(file.name),
+            extractedfrom: key,
+          },
+        }),
+      );
+    }
+  }
 
   await startKnowledgeBaseIngestion();
 

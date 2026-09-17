@@ -1,0 +1,35 @@
+ORION PROJECT - WEEKLY STATUS NOTES
+=================================
+Week of: 9 March 2026
+Author: Priya Nair (Engineering)
+Project code: ORION-ALPHA
+
+Goal
+----
+Ship the customer-facing search prototype to internal dogfood users.
+
+Completed this week
+-------------------
+- Indexed 12 sample knowledge articles into the staging knowledge base.
+- Fixed citation rendering so source filenames appear under each answer.
+- Reduced average query latency from 4.8s to 2.1s on staging.
+
+In progress
+-----------
+- PDF ingestion validation for scanned documents.
+- Role-based access checks for shared demo tenants.
+
+Blockers
+--------
+- Waiting on Bedrock quota increase in eu-central-1 (ticket QUOTA-4481).
+- Design review for empty-state illustration is pending since Friday.
+
+Next week plan
+--------------
+- Enable ingestion status polling in the UI.
+- Add fixture documents for manual RAG regression tests.
+- Prepare a 10-minute demo script for stakeholders.
+
+Key decision
+------------
+We will keep the demo environment in us-east-1 until the eu-central-1 quota is approved.
