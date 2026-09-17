@@ -17,6 +17,8 @@
   "context": {
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
     "githubOwner": "brieflydev",
-    "githubRepo": "document-assistant"
+    "githubRepo": "document-assistant",
+    "githubOwnerId": "210855841",
+    "githubRepoId": "1374089154"
   }
 }

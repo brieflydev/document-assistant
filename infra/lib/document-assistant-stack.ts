@@ -282,6 +282,22 @@ export class DocumentAssistantStack extends cdk.Stack {
       clientIds: ["sts.amazonaws.com"],
     });
 
+    const githubOwner = props.githubOwner;
+    const githubRepo = props.githubRepo;
+    // GitHub may send either classic or unique-ID subject claims.
+    const githubOwnerId = this.node.tryGetContext("githubOwnerId") as
+      | string
+      | undefined;
+    const githubRepoId = this.node.tryGetContext("githubRepoId") as
+      | string
+      | undefined;
+    const subjectClaims = [`repo:${githubOwner}/${githubRepo}:*`];
+    if (githubOwnerId && githubRepoId) {
+      subjectClaims.push(
+        `repo:${githubOwner}@${githubOwnerId}/${githubRepo}@${githubRepoId}:*`,
+      );
+    }
+
     const deployRole = new iam.Role(this, "GitHubDeployRole", {
       roleName: "document-assistant-github-deploy",
       description: "Assumed by GitHub Actions via OIDC",
@@ -292,7 +308,7 @@ export class DocumentAssistantStack extends cdk.Stack {
             "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
           },
           StringLike: {
-            "token.actions.githubusercontent.com:sub": `repo:${props.githubOwner}/${props.githubRepo}:*`,
+            "token.actions.githubusercontent.com:sub": subjectClaims,
           },
         },
       ),
