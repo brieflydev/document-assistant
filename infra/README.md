@@ -9,9 +9,15 @@ AWS CDK (TypeScript) stack for the workshop app.
 - Bedrock Knowledge Base + S3 data source (with foundation-model parsing)
 - ECR repository `document-assistant`
 - VPC (public subnets only, no NAT), ECS Fargate service, ALB
+  - Image: `document-assistant:latest` from ECR (port 3000)
+  - Health check: `GET /api/health`
+  - Env: `DOCUMENTS_BUCKET`, `DOCUMENTS_PREFIX`, `KNOWLEDGE_BASE_ID`, `DATA_SOURCE_ID`, `BEDROCK_MODEL_ARN`, `HOSTNAME=0.0.0.0`
 - GitHub Actions OIDC provider + deploy role
 
 > **Note:** Vector storage uses **Amazon S3 Vectors** instead of OpenSearch Serverless to keep workshop cost low.
+
+> **First deploy:** push an image to ECR before (or immediately after) the ECS service starts, otherwise tasks fail to pull `latest`. CI will build/push via `scripts/push-ecr-image.sh`.
+
 
 ## Commands
 

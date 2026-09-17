@@ -217,7 +217,6 @@ export class DocumentAssistantStack extends cdk.Stack {
         cluster,
         cpu: 512,
         memoryLimitMiB: 1024,
-        // Placeholder until the real Next.js image is pushed by CI/CD.
         desiredCount: 1,
         minHealthyPercent: 50,
         circuitBreaker: { rollback: true },
@@ -226,12 +225,9 @@ export class DocumentAssistantStack extends cdk.Stack {
         taskSubnets: { subnetType: ec2.SubnetType.PUBLIC },
         listenerPort: 80,
         taskImageOptions: {
-          // Temporary public image so the stack can deploy before the first ECR push.
-          // GitHub Actions will replace this with the Next.js image from ECR.
-          image: ecs.ContainerImage.fromRegistry(
-            "public.ecr.aws/nginx/nginx:stable-alpine",
-          ),
-          containerPort: 80,
+          image: ecs.ContainerImage.fromEcrRepository(repository, "latest"),
+          containerName: "document-assistant",
+          containerPort: 3000,
           taskRole,
           family: "document-assistant",
           logDriver: ecs.LogDrivers.awsLogs({
@@ -246,15 +242,16 @@ export class DocumentAssistantStack extends cdk.Stack {
             AWS_REGION: this.region,
             BEDROCK_MODEL_ARN: generationModelArn,
             PORT: "3000",
+            HOSTNAME: "0.0.0.0",
             NODE_ENV: "production",
+            NEXT_TELEMETRY_DISABLED: "1",
           },
         },
       },
     );
 
-    // Placeholder health check for nginx; switched to /api/health with the app image.
     service.targetGroup.configureHealthCheck({
-      path: "/",
+      path: "/api/health",
       healthyHttpCodes: "200",
       interval: cdk.Duration.seconds(30),
       timeout: cdk.Duration.seconds(5),
