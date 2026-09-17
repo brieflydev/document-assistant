@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import type { ChatRequest, ChatResponse } from "@/lib/types";
+import { askKnowledgeBase } from "@/lib/chat";
+import { isAwsConfigured } from "@/lib/config";
 import { listDocuments } from "@/lib/document-store";
+import type { ChatRequest, ChatResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -18,21 +20,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Message is required" }, { status: 400 });
   }
 
-  const documents = listDocuments();
-  const sources = documents.slice(0, 2);
+  try {
+    if (isAwsConfigured()) {
+      const response = await askKnowledgeBase(message);
+      return NextResponse.json({ ...response, mode: "aws" });
+    }
 
-  // Stub: real Bedrock RetrieveAndGenerate comes in a later todo.
-  const response: ChatResponse = {
-    answer:
-      sources.length === 0
-        ? "I don't have any indexed documents yet. Upload a file first, then ask again."
-        : `This is a scaffolded response for: "${message}". Once AWS Bedrock is wired up, answers will be grounded in your uploaded documents.`,
-    citations: sources.map((document, index) => ({
-      id: `citation-${index + 1}`,
-      source: document.name,
-      excerpt: `Stub citation excerpt from ${document.name}.`,
-    })),
-  };
+    const documents = listDocuments();
+    const sources = documents.slice(0, 2);
 
-  return NextResponse.json(response);
+    const response: ChatResponse = {
+      answer:
+        sources.length === 0
+          ? "I don't have any indexed documents yet. Upload a file first, then ask again."
+          : `Local stub response for: "${message}". Set DOCUMENTS_BUCKET, KNOWLEDGE_BASE_ID, DATA_SOURCE_ID, and BEDROCK_MODEL_ARN to use Bedrock.`,
+      citations: sources.map((document, index) => ({
+        id: `citation-${index + 1}`,
+        source: document.name,
+        excerpt: `Stub citation excerpt from ${document.name}.`,
+      })),
+    };
+
+    return NextResponse.json({ ...response, mode: "local" });
+  } catch (error) {
+    console.error("Chat request failed", error);
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Chat request failed",
+      },
+      { status: 500 },
+    );
+  }
 }

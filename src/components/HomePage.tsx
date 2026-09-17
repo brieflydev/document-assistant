@@ -59,6 +59,23 @@ export function HomePage() {
     };
   }, [reloadToken]);
 
+  useEffect(() => {
+    const isIndexing = documents.some(
+      (document) => document.status === "indexing",
+    );
+    if (!isIndexing) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setReloadToken((token) => token + 1);
+    }, 5000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [documents]);
+
   return (
     <Box sx={{ minHeight: "100vh", py: 4 }}>
       <Container maxWidth="lg">

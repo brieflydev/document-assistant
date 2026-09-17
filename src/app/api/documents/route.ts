@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
+import { isAwsConfigured } from "@/lib/config";
 import { addDocument, listDocuments } from "@/lib/document-store";
+import {
+  listDocumentsFromS3,
+  uploadDocumentToS3,
+} from "@/lib/documents";
 import { ACCEPTED_FILE_TYPES } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -10,35 +15,66 @@ function isAcceptedFile(file: File) {
 }
 
 export async function GET() {
-  return NextResponse.json({ documents: listDocuments() });
+  try {
+    if (isAwsConfigured()) {
+      const documents = await listDocumentsFromS3();
+      return NextResponse.json({ documents, mode: "aws" });
+    }
+
+    return NextResponse.json({ documents: listDocuments(), mode: "local" });
+  } catch (error) {
+    console.error("Failed to list documents", error);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to list documents",
+      },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(request: Request) {
-  const formData = await request.formData();
-  const file = formData.get("file");
+  try {
+    const formData = await request.formData();
+    const file = formData.get("file");
 
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Missing file upload" }, { status: 400 });
-  }
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "Missing file upload" }, { status: 400 });
+    }
 
-  if (!isAcceptedFile(file)) {
+    if (!isAcceptedFile(file)) {
+      return NextResponse.json(
+        {
+          error: `Unsupported file type. Accepted: ${ACCEPTED_FILE_TYPES.join(", ")}`,
+        },
+        { status: 400 },
+      );
+    }
+
+    if (isAwsConfigured()) {
+      const document = await uploadDocumentToS3(file);
+      return NextResponse.json({ document, mode: "aws" }, { status: 201 });
+    }
+
+    const document = addDocument({
+      id: crypto.randomUUID(),
+      name: file.name,
+      contentType: file.type || "application/octet-stream",
+      size: file.size,
+      status: "uploaded",
+      uploadedAt: new Date().toISOString(),
+    });
+
+    return NextResponse.json({ document, mode: "local" }, { status: 201 });
+  } catch (error) {
+    console.error("Failed to upload document", error);
     return NextResponse.json(
       {
-        error: `Unsupported file type. Accepted: ${ACCEPTED_FILE_TYPES.join(", ")}`,
+        error:
+          error instanceof Error ? error.message : "Failed to upload document",
       },
-      { status: 400 },
+      { status: 500 },
     );
   }
-
-  const document = addDocument({
-    id: crypto.randomUUID(),
-    name: file.name,
-    contentType: file.type || "application/octet-stream",
-    size: file.size,
-    status: "uploaded",
-    uploadedAt: new Date().toISOString(),
-  });
-
-  // Stub: real S3 upload + KB ingestion comes in a later todo.
-  return NextResponse.json({ document }, { status: 201 });
 }
