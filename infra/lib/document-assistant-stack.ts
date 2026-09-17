@@ -298,6 +298,13 @@ export class DocumentAssistantStack extends cdk.Stack {
       ),
     });
 
+    // configure-aws-credentials tags the session; trust policy must allow TagSession.
+    const cfnDeployRole = deployRole.node.defaultChild as iam.CfnRole;
+    cfnDeployRole.addPropertyOverride(
+      "AssumeRolePolicyDocument.Statement.0.Action",
+      ["sts:AssumeRoleWithWebIdentity", "sts:TagSession"],
+    );
+
     repository.grantPullPush(deployRole);
 
     deployRole.addToPolicy(
