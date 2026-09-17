@@ -32,7 +32,10 @@ Because Docker cannot run on this workstation, validate with `npm run build` loc
 ./scripts/push-ecr-image.sh
 ```
 
-## AWS local wiring
+## CI/CD
 
-Copy [`.env.example`](.env.example) to `.env.local` and fill values from `cd infra && npx cdk deploy` outputs. Uses your AWS CLI credentials.
+- [`ci.yml`](.github/workflows/ci.yml) — lint, build, CDK synth
+- [`deploy.yml`](.github/workflows/deploy.yml) — OIDC deploy to AWS
+
+See [`.github/workflows/README.md`](.github/workflows/README.md) for the one-time `AWS_ROLE_ARN` setup.
 

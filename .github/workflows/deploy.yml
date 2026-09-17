@@ -1,0 +1,135 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: document-assistant
+  CDK_DEFAULT_ACCOUNT: "565393069879"
+  CDK_DEFAULT_REGION: us-east-1
+
+jobs:
+  deploy:
+    name: Deploy to AWS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            infra/package-lock.json
+
+      - name: Install app dependencies
+        run: npm ci
+
+      - name: Lint & build app
+        run: |
+          npm run lint
+          npm run build
+
+      - name: Install infra dependencies
+        working-directory: infra
+        run: npm ci
+
+      - name: Check whether ECR repository already exists
+        id: ecr
+        run: |
+          if aws ecr describe-repositories --repository-names "${ECR_REPOSITORY}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push image (before CDK when ECR exists)
+        if: steps.ecr.outputs.exists == 'true'
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: ./scripts/push-ecr-image.sh
+
+      - name: Deploy CDK stack
+        working-directory: infra
+        run: npx cdk deploy --require-approval never --outputs-file cdk-outputs.json
+
+      - name: Build and push image (after first ECR create)
+        if: steps.ecr.outputs.exists != 'true'
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: ./scripts/push-ecr-image.sh
+
+      - name: Read stack outputs
+        id: outputs
+        working-directory: infra
+        run: |
+          CLUSTER="$(jq -r '.DocumentAssistantStack.EcsClusterName' cdk-outputs.json)"
+          SERVICE="$(jq -r '.DocumentAssistantStack.EcsServiceName' cdk-outputs.json)"
+          ALB_DNS="$(jq -r '.DocumentAssistantStack.LoadBalancerDns' cdk-outputs.json)"
+          ROLE_ARN="$(jq -r '.DocumentAssistantStack.GitHubDeployRoleArn' cdk-outputs.json)"
+          echo "cluster=${CLUSTER}" >> "$GITHUB_OUTPUT"
+          echo "service=${SERVICE}" >> "$GITHUB_OUTPUT"
+          echo "alb_dns=${ALB_DNS}" >> "$GITHUB_OUTPUT"
+          echo "role_arn=${ROLE_ARN}" >> "$GITHUB_OUTPUT"
+
+      - name: Force new ECS deployment
+        run: |
+          aws ecs update-service \
+            --cluster "${{ steps.outputs.outputs.cluster }}" \
+            --service "${{ steps.outputs.outputs.service }}" \
+            --force-new-deployment \
+            --query 'service.serviceName' \
+            --output text
+
+      - name: Wait for service stability
+        run: |
+          aws ecs wait services-stable \
+            --cluster "${{ steps.outputs.outputs.cluster }}" \
+            --services "${{ steps.outputs.outputs.service }}"
+
+      - name: Smoke check health endpoint
+        run: |
+          URL="http://${{ steps.outputs.outputs.alb_dns }}/api/health"
+          echo "Checking ${URL}"
+          for i in $(seq 1 20); do
+            if curl -fsS "${URL}"; then
+              echo
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Attempt ${i}/20 failed; retrying in 15s..."
+            sleep 15
+          done
+          echo "Health check did not pass in time"
+          exit 1
+
+      - name: Summary
+        run: |
+          {
+            echo "## Deploy complete"
+            echo ""
+            echo "- App URL: http://${{ steps.outputs.outputs.alb_dns }}"
+            echo "- Health: http://${{ steps.outputs.outputs.alb_dns }}/api/health"
+            echo "- Image: \`${IMAGE_URI}:${{ github.sha }}\`"
+            echo "- Deploy role: \`${{ steps.outputs.outputs.role_arn }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

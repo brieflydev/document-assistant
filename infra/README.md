@@ -16,7 +16,10 @@ AWS CDK (TypeScript) stack for the workshop app.
 
 > **Note:** Vector storage uses **Amazon S3 Vectors** instead of OpenSearch Serverless to keep workshop cost low.
 
-> **First deploy:** push an image to ECR before (or immediately after) the ECS service starts, otherwise tasks fail to pull `latest`. CI will build/push via `scripts/push-ecr-image.sh`.
+> **First deploy:**  
+> `npx cdk deploy -c usePlaceholderImage=true` creates ECR/ECS with a temporary nginx image.  
+> Then set GitHub variable `AWS_ROLE_ARN` and let Actions push the real app image.  
+> Later deploys omit the placeholder flag.
 
 
 ## Commands

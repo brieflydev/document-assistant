@@ -210,6 +210,21 @@ export class DocumentAssistantStack extends cdk.Stack {
 
     const generationModelArn = `arn:aws:bedrock:${this.region}::foundation-model/${GENERATION_MODEL_ID}`;
 
+    // First-time bootstrap: `cdk deploy -c usePlaceholderImage=true` so the stack
+    // can create ECR/ECS before the real app image exists. Normal deploys omit this.
+    const usePlaceholderImage =
+      this.node.tryGetContext("usePlaceholderImage") === true ||
+      this.node.tryGetContext("usePlaceholderImage") === "true";
+
+    const containerImage = usePlaceholderImage
+      ? ecs.ContainerImage.fromRegistry(
+          "public.ecr.aws/nginx/nginx:stable-alpine",
+        )
+      : ecs.ContainerImage.fromEcrRepository(repository, "latest");
+
+    const containerPort = usePlaceholderImage ? 80 : 3000;
+    const healthCheckPath = usePlaceholderImage ? "/" : "/api/health";
+
     const service = new ecsPatterns.ApplicationLoadBalancedFargateService(
       this,
       "WebService",
@@ -224,10 +239,11 @@ export class DocumentAssistantStack extends cdk.Stack {
         assignPublicIp: true,
         taskSubnets: { subnetType: ec2.SubnetType.PUBLIC },
         listenerPort: 80,
+        healthCheckGracePeriod: cdk.Duration.seconds(60),
         taskImageOptions: {
-          image: ecs.ContainerImage.fromEcrRepository(repository, "latest"),
+          image: containerImage,
           containerName: "document-assistant",
-          containerPort: 3000,
+          containerPort,
           taskRole,
           family: "document-assistant",
           logDriver: ecs.LogDrivers.awsLogs({
@@ -251,7 +267,7 @@ export class DocumentAssistantStack extends cdk.Stack {
     );
 
     service.targetGroup.configureHealthCheck({
-      path: "/api/health",
+      path: healthCheckPath,
       healthyHttpCodes: "200",
       interval: cdk.Duration.seconds(30),
       timeout: cdk.Duration.seconds(5),
